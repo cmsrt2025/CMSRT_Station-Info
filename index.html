@@ -2,16 +2,39 @@
 <html lang="th">
 <head>
   <meta charset="utf-8"/>
-  <title>Live Station Map (Free)</title>
+  <title>Live Station Map (Free + Street View)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+  <!-- Mapillary Viewer -->
+  <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.min.js"></script>
+  <link
+    href="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.min.css"
+    rel="stylesheet"
+  />
+
   <style>
     body { margin:0; font-family: Arial, sans-serif; }
-    #map { height:100vh; width:100%; }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+    }
+
+    #map {
+      width: 60%;
+      height: 100%;
+    }
+
+    #street {
+      width: 40%;
+      height: 100%;
+      border-left: 2px solid #ccc;
+    }
 
     .panel {
       position:absolute;
@@ -33,7 +56,10 @@
 
 <body>
 
-<div id="map"></div>
+<div class="container">
+  <div id="map"></div>
+  <div id="street"></div>
+</div>
 
 <div class="panel">
   <label>Status</label>
@@ -56,8 +82,13 @@
 /* ================= CONFIG ================= */
 const SHEET_ID = '1wsOOFGM0eVUrpozcOWJFQSpJEBpwH0l7iC0gpWxbx6M';
 const SHEET_NAME = 'Sheet1';
+
+/* Mapillary public token (demo token ใช้ได้ฟรี) */
+const MAPILLARY_TOKEN = 
+  'MLY|25387255644218126|2be8d826be5f35ed27129aa1afc4161e';
 /* ========================================== */
 
+/* ---------- Map ---------- */
 const map = L.map('map').setView([13.7, 100.5], 6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -65,6 +96,17 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 let markers = [];
+
+/* ---------- Street View ---------- */
+let viewer = new mapillary.Viewer({
+  container: 'street',
+  accessToken: MAPILLARY_TOKEN,
+  component: { cover: true }
+});
+
+function showStreetView(lat, lng) {
+  viewer.moveCloseTo({ lat, lng });
+}
 
 function statusColor(status) {
   if (!status) return 'gray';
@@ -100,6 +142,7 @@ function populateSelect(id, values) {
   });
 }
 
+/* ---------- Load Google Sheet ---------- */
 fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`)
   .then(res => res.text())
   .then(text => {
@@ -125,11 +168,11 @@ fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&s
       regionSet.push(region);
 
       const marker = L.circleMarker([lat, lng], {
-        radius:8,
+        radius: 8,
         fillColor: statusColor(status),
-        color:'#000',
-        weight:1,
-        fillOpacity:0.85
+        color: '#000',
+        weight: 1,
+        fillOpacity: 0.85
       }).addTo(map);
 
       marker.bindPopup(
@@ -138,6 +181,10 @@ fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&s
          Consultant: ${consultant || '-'}<br>
          Region: ${region || '-'}`
       );
+
+      marker.on('click', () => {
+        showStreetView(lat, lng);
+      });
 
       markers.push({
         marker,
