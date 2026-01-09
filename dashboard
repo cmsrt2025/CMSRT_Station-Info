@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8"/>
+  <title>Live Station Map (Free)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; }
+    #map { height:100vh; width:100%; }
+
+    .panel {
+      position:absolute;
+      top:10px;
+      left:10px;
+      background:#fff;
+      padding:10px;
+      border-radius:6px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.3);
+      z-index:1000;
+      font-size:13px;
+      min-width:180px;
+    }
+
+    .panel label { font-weight:bold; }
+    .panel select { width:100%; margin-bottom:6px; }
+  </style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div class="panel">
+  <label>Status</label>
+  <select id="statusFilter">
+    <option value="ALL">All</option>
+  </select>
+
+  <label>Consultant</label>
+  <select id="consultantFilter">
+    <option value="ALL">All</option>
+  </select>
+
+  <label>Region</label>
+  <select id="regionFilter">
+    <option value="ALL">All</option>
+  </select>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const SHEET_ID = '1wsOOFGM0eVUrpozcOWJFQSpJEBpwH0l7iC0gpWxbx6M';
+const SHEET_NAME = 'Sheet1';
+/* ========================================== */
+
+const map = L.map('map').setView([13.7, 100.5], 6);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+let markers = [];
+
+function statusColor(status) {
+  if (!status) return 'gray';
+  const s = status.toLowerCase();
+  if (s.includes('complete')) return 'green';
+  if (s.includes('progress')) return 'orange';
+  return 'red';
+}
+
+function applyFilters() {
+  const sVal = document.getElementById('statusFilter').value;
+  const cVal = document.getElementById('consultantFilter').value;
+  const rVal = document.getElementById('regionFilter').value;
+
+  markers.forEach(m => {
+    const show =
+      (sVal === 'ALL' || m.data.status === sVal) &&
+      (cVal === 'ALL' || m.data.consultant === cVal) &&
+      (rVal === 'ALL' || m.data.region === rVal);
+
+    if (show) m.marker.addTo(map);
+    else map.removeLayer(m.marker);
+  });
+}
+
+function populateSelect(id, values) {
+  const select = document.getElementById(id);
+  [...new Set(values.filter(v => v))].sort().forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+}
+
+fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`)
+  .then(res => res.text())
+  .then(text => {
+    const json = JSON.parse(text.substring(47).slice(0, -2));
+    const rows = json.table.rows;
+
+    const statusSet = [];
+    const consultantSet = [];
+    const regionSet = [];
+
+    rows.forEach(r => {
+      const station = r.c[1]?.v;
+      const lat = parseFloat(r.c[2]?.v);
+      const lng = parseFloat(r.c[3]?.v);
+      const consultant = r.c[4]?.v;
+      const status = r.c[5]?.v;
+      const region = r.c[6]?.v;
+
+      if (!lat || !lng) return;
+
+      statusSet.push(status);
+      consultantSet.push(consultant);
+      regionSet.push(region);
+
+      const marker = L.circleMarker([lat, lng], {
+        radius:8,
+        fillColor: statusColor(status),
+        color:'#000',
+        weight:1,
+        fillOpacity:0.85
+      }).addTo(map);
+
+      marker.bindPopup(
+        `<b>${station}</b><br>
+         Status: ${status || '-'}<br>
+         Consultant: ${consultant || '-'}<br>
+         Region: ${region || '-'}`
+      );
+
+      markers.push({
+        marker,
+        data: { status, consultant, region }
+      });
+    });
+
+    populateSelect('statusFilter', statusSet);
+    populateSelect('consultantFilter', consultantSet);
+    populateSelect('regionFilter', regionSet);
+
+    document.getElementById('statusFilter').onchange = applyFilters;
+    document.getElementById('consultantFilter').onchange = applyFilters;
+    document.getElementById('regionFilter').onchange = applyFilters;
+  });
+</script>
+
+</body>
+</html>
