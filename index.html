@@ -16,66 +16,24 @@ html, body {
 }
 
 #map {
+  width: 100%;
   height: 100%;
-  width: 100%;
 }
 
-/* Top bar */
-.topbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: #fff;
-  border-bottom: 1px solid #ddd;
-  z-index: 1200;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  font-weight: bold;
-}
-
-/* Side panel */
 .panel {
-  position: absolute;
-  top: 56px;
-  left: 12px;
-  width: 260px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.3);
-  padding: 10px;
-  z-index: 1200;
-  font-size: 13px;
+  position:absolute;
+  top:10px;
+  left:10px;
+  background:#fff;
+  padding:10px;
+  border-radius:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,.3);
+  z-index:1000;
+  font-size:13px;
+  width:200px;
 }
-
-.panel h3 {
-  margin: 6px 0;
-  font-size: 14px;
-}
-
-.panel label {
-  font-weight: bold;
-  display: block;
-  margin-top: 6px;
-}
-
-.panel select,
-.panel input[type="color"] {
-  width: 100%;
-  margin-top: 4px;
-}
-
-/* Marker label */
-.station-label {
-  background: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid #333;
-  font-size: 11px;
-  white-space: nowrap;
-}
+.panel label { font-weight:bold; }
+.panel select { width:100%; margin-bottom:6px; }
 </style>
 </head>
 
@@ -83,13 +41,7 @@ html, body {
 
 <div id="map"></div>
 
-<div class="topbar">
-  ☰ Live Station Map
-</div>
-
 <div class="panel">
-  <h3>Filter</h3>
-
   <label>Status</label>
   <select id="statusFilter">
     <option value="ALL">All</option>
@@ -104,64 +56,26 @@ html, body {
   <select id="regionFilter">
     <option value="ALL">All</option>
   </select>
-
-  <h3>Marker Style</h3>
-
-  <label>Icon Type</label>
-  <select id="iconType">
-    <option value="circle">Circle</option>
-    <option value="pin">Pin</option>
-    <option value="square">Square</option>
-  </select>
-
-  <label>Completed Color</label>
-  <input type="color" id="colorCompleted" value="#2ecc71">
-
-  <label>In Progress Color</label>
-  <input type="color" id="colorProgress" value="#f1c40f">
-
-  <label>Not Started Color</label>
-  <input type="color" id="colorNotStarted" value="#e74c3c">
 </div>
 
 <script>
 const SHEET_ID = '1wsOOFGM0eVUrpozcOWJFQSpJEBpwH0l7iC0gpWxbx6M';
 const SHEET_NAME = 'Sheet1';
 
-const map = L.map('map', { zoomControl: false })
-  .setView([13.7, 100.5], 6);
-
-L.control.zoom({ position: 'bottomright' }).addTo(map);
+const map = L.map('map').setView([13.7, 100.5], 6);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap'
+  attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 let markers = [];
 
-function getStatusColor(status) {
-  const s = (status || '').toLowerCase();
-  if (s.includes('complete')) return colorCompleted.value;
-  if (s.includes('progress')) return colorProgress.value;
-  return colorNotStarted.value;
-}
-
-function createIcon(station, color) {
-  return L.divIcon({
-    className: '',
-    html: `<div class="station-label" style="border-color:${color}">${station}</div>`,
-    iconAnchor: [20, 20]
-  });
-}
-
-function redrawMarkers() {
-  markers.forEach(m => map.removeLayer(m.marker));
-  markers.forEach(m => {
-    const color = getStatusColor(m.data.status);
-    m.marker = L.marker([m.data.lat, m.data.lng], {
-      icon: createIcon(m.data.station, color)
-    }).addTo(map);
-  });
+function statusColor(status) {
+  if (!status) return 'gray';
+  const s = status.toLowerCase();
+  if (s.includes('complete')) return 'green';
+  if (s.includes('progress')) return 'orange';
+  return 'red';
 }
 
 function applyFilters() {
@@ -180,46 +94,68 @@ function applyFilters() {
   });
 }
 
+function populateSelect(id, values) {
+  const select = document.getElementById(id);
+  [...new Set(values.filter(v => v))].sort().forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    select.appendChild(opt);
+  });
+}
+
 fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`)
-  .then(r => r.text())
-  .then(t => {
-    const json = JSON.parse(t.substring(47).slice(0, -2));
+  .then(res => res.text())
+  .then(text => {
+    const json = JSON.parse(text.substring(47).slice(0, -2));
     const rows = json.table.rows;
+
+    const statusSet = [];
+    const consultantSet = [];
+    const regionSet = [];
 
     rows.forEach(r => {
       const station = r.c[1]?.v;
-      const lat = r.c[2]?.v;
-      const lng = r.c[3]?.v;
+      const lat = parseFloat(r.c[2]?.v);
+      const lng = parseFloat(r.c[3]?.v);
       const consultant = r.c[4]?.v;
       const status = r.c[5]?.v;
       const region = r.c[6]?.v;
 
       if (!lat || !lng) return;
 
-      const marker = L.marker([lat, lng], {
-        icon: createIcon(station, getStatusColor(status))
+      statusSet.push(status);
+      consultantSet.push(consultant);
+      regionSet.push(region);
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: 7,
+        color: '#000',
+        weight: 1,
+        fillColor: statusColor(status),
+        fillOpacity: 0.9
       }).addTo(map);
 
       marker.bindPopup(
         `<b>${station}</b><br>
-         Status: ${status}<br>
-         Consultant: ${consultant}<br>
-         Region: ${region}`
+         Status: ${status || '-'}<br>
+         Consultant: ${consultant || '-'}<br>
+         Region: ${region || '-'}`
       );
 
       markers.push({
         marker,
-        data: { station, lat, lng, status, consultant, region }
+        data: { status, consultant, region }
       });
     });
 
-    [statusFilter, consultantFilter, regionFilter].forEach(sel => {
-      sel.onchange = applyFilters;
-    });
+    populateSelect('statusFilter', statusSet);
+    populateSelect('consultantFilter', consultantSet);
+    populateSelect('regionFilter', regionSet);
 
-    [colorCompleted, colorProgress, colorNotStarted].forEach(c => {
-      c.oninput = redrawMarkers;
-    });
+    statusFilter.onchange = applyFilters;
+    consultantFilter.onchange = applyFilters;
+    regionFilter.onchange = applyFilters;
   });
 </script>
 
