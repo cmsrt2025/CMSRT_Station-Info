@@ -1,67 +1,95 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="utf-8"/>
-  <title>Live Station Map (Free + Street View)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta charset="utf-8"/>
+<title>Live Station Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- Mapillary Viewer -->
-  <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.min.js"></script>
-  <link
-    href="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.min.css"
-    rel="stylesheet"
-  />
+<style>
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+}
 
-  <style>
-    body { margin:0; font-family: Arial, sans-serif; }
+#map {
+  height: 100%;
+  width: 100%;
+}
 
-    .container {
-      display: flex;
-      height: 100vh;
-      width: 100%;
-    }
+/* Top bar */
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-weight: bold;
+}
 
-    #map {
-      width: 60%;
-      height: 100%;
-    }
+/* Side panel */
+.panel {
+  position: absolute;
+  top: 56px;
+  left: 12px;
+  width: 260px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  padding: 10px;
+  z-index: 1200;
+  font-size: 13px;
+}
 
-    #street {
-      width: 40%;
-      height: 100%;
-      border-left: 2px solid #ccc;
-    }
+.panel h3 {
+  margin: 6px 0;
+  font-size: 14px;
+}
 
-    .panel {
-      position:absolute;
-      top:10px;
-      left:10px;
-      background:#fff;
-      padding:10px;
-      border-radius:6px;
-      box-shadow:0 2px 6px rgba(0,0,0,0.3);
-      z-index:1000;
-      font-size:13px;
-      min-width:180px;
-    }
+.panel label {
+  font-weight: bold;
+  display: block;
+  margin-top: 6px;
+}
 
-    .panel label { font-weight:bold; }
-    .panel select { width:100%; margin-bottom:6px; }
-  </style>
+.panel select,
+.panel input[type="color"] {
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Marker label */
+.station-label {
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  font-size: 11px;
+  white-space: nowrap;
+}
+</style>
 </head>
 
 <body>
 
-<div class="container">
-  <div id="map"></div>
-  <div id="street"></div>
+<div id="map"></div>
+
+<div class="topbar">
+  ☰ Live Station Map
 </div>
 
 <div class="panel">
+  <h3>Filter</h3>
+
   <label>Status</label>
   <select id="statusFilter">
     <option value="ALL">All</option>
@@ -76,50 +104,70 @@
   <select id="regionFilter">
     <option value="ALL">All</option>
   </select>
+
+  <h3>Marker Style</h3>
+
+  <label>Icon Type</label>
+  <select id="iconType">
+    <option value="circle">Circle</option>
+    <option value="pin">Pin</option>
+    <option value="square">Square</option>
+  </select>
+
+  <label>Completed Color</label>
+  <input type="color" id="colorCompleted" value="#2ecc71">
+
+  <label>In Progress Color</label>
+  <input type="color" id="colorProgress" value="#f1c40f">
+
+  <label>Not Started Color</label>
+  <input type="color" id="colorNotStarted" value="#e74c3c">
 </div>
 
 <script>
-/* ================= CONFIG ================= */
 const SHEET_ID = '1wsOOFGM0eVUrpozcOWJFQSpJEBpwH0l7iC0gpWxbx6M';
 const SHEET_NAME = 'Sheet1';
 
-/* Mapillary public token (demo token ใช้ได้ฟรี) */
-const MAPILLARY_TOKEN = 
-  'MLY|25387255644218126|2be8d826be5f35ed27129aa1afc4161e';
-/* ========================================== */
+const map = L.map('map', { zoomControl: false })
+  .setView([13.7, 100.5], 6);
 
-/* ---------- Map ---------- */
-const map = L.map('map').setView([13.7, 100.5], 6);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
+  attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
 let markers = [];
 
-/* ---------- Street View ---------- */
-let viewer = new mapillary.Viewer({
-  container: 'street',
-  accessToken: MAPILLARY_TOKEN,
-  component: { cover: true }
-});
-
-function showStreetView(lat, lng) {
-  viewer.moveCloseTo({ lat, lng });
+function getStatusColor(status) {
+  const s = (status || '').toLowerCase();
+  if (s.includes('complete')) return colorCompleted.value;
+  if (s.includes('progress')) return colorProgress.value;
+  return colorNotStarted.value;
 }
 
-function statusColor(status) {
-  if (!status) return 'gray';
-  const s = status.toLowerCase();
-  if (s.includes('complete')) return 'green';
-  if (s.includes('progress')) return 'orange';
-  return 'red';
+function createIcon(station, color) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="station-label" style="border-color:${color}">${station}</div>`,
+    iconAnchor: [20, 20]
+  });
+}
+
+function redrawMarkers() {
+  markers.forEach(m => map.removeLayer(m.marker));
+  markers.forEach(m => {
+    const color = getStatusColor(m.data.status);
+    m.marker = L.marker([m.data.lat, m.data.lng], {
+      icon: createIcon(m.data.station, color)
+    }).addTo(map);
+  });
 }
 
 function applyFilters() {
-  const sVal = document.getElementById('statusFilter').value;
-  const cVal = document.getElementById('consultantFilter').value;
-  const rVal = document.getElementById('regionFilter').value;
+  const sVal = statusFilter.value;
+  const cVal = consultantFilter.value;
+  const rVal = regionFilter.value;
 
   markers.forEach(m => {
     const show =
@@ -132,73 +180,46 @@ function applyFilters() {
   });
 }
 
-function populateSelect(id, values) {
-  const select = document.getElementById(id);
-  [...new Set(values.filter(v => v))].sort().forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v;
-    opt.textContent = v;
-    select.appendChild(opt);
-  });
-}
-
-/* ---------- Load Google Sheet ---------- */
 fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${SHEET_NAME}`)
-  .then(res => res.text())
-  .then(text => {
-    const json = JSON.parse(text.substring(47).slice(0, -2));
+  .then(r => r.text())
+  .then(t => {
+    const json = JSON.parse(t.substring(47).slice(0, -2));
     const rows = json.table.rows;
-
-    const statusSet = [];
-    const consultantSet = [];
-    const regionSet = [];
 
     rows.forEach(r => {
       const station = r.c[1]?.v;
-      const lat = parseFloat(r.c[2]?.v);
-      const lng = parseFloat(r.c[3]?.v);
+      const lat = r.c[2]?.v;
+      const lng = r.c[3]?.v;
       const consultant = r.c[4]?.v;
       const status = r.c[5]?.v;
       const region = r.c[6]?.v;
 
       if (!lat || !lng) return;
 
-      statusSet.push(status);
-      consultantSet.push(consultant);
-      regionSet.push(region);
-
-      const marker = L.circleMarker([lat, lng], {
-        radius: 8,
-        fillColor: statusColor(status),
-        color: '#000',
-        weight: 1,
-        fillOpacity: 0.85
+      const marker = L.marker([lat, lng], {
+        icon: createIcon(station, getStatusColor(status))
       }).addTo(map);
 
       marker.bindPopup(
         `<b>${station}</b><br>
-         Status: ${status || '-'}<br>
-         Consultant: ${consultant || '-'}<br>
-         Region: ${region || '-'}`
+         Status: ${status}<br>
+         Consultant: ${consultant}<br>
+         Region: ${region}`
       );
-
-      marker.on('click', () => {
-        showStreetView(lat, lng);
-      });
 
       markers.push({
         marker,
-        data: { status, consultant, region }
+        data: { station, lat, lng, status, consultant, region }
       });
     });
 
-    populateSelect('statusFilter', statusSet);
-    populateSelect('consultantFilter', consultantSet);
-    populateSelect('regionFilter', regionSet);
+    [statusFilter, consultantFilter, regionFilter].forEach(sel => {
+      sel.onchange = applyFilters;
+    });
 
-    document.getElementById('statusFilter').onchange = applyFilters;
-    document.getElementById('consultantFilter').onchange = applyFilters;
-    document.getElementById('regionFilter').onchange = applyFilters;
+    [colorCompleted, colorProgress, colorNotStarted].forEach(c => {
+      c.oninput = redrawMarkers;
+    });
   });
 </script>
 
