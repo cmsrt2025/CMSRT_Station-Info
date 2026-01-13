@@ -940,7 +940,12 @@ function updateLegend() {
       const values = allData.map(r => r[statusIndex]).filter(v => v);
       const unique = [...new Set(values)].sort();
       unique.forEach(value => {
-        items.push({ label: value, color: statusColor(value), isImage: false });
+        const labelValue = String(value);
+        if (labelValue.trim() === '-') {
+          items.push({ label: value, color: '#d1d5db', isImage: false });
+        } else {
+          items.push({ label: value, color: statusColor(value), isImage: false });
+        }
       });
     }
   }
