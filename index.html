@@ -426,23 +426,6 @@
       border-top-color: rgba(44, 62, 80, 0.9);
     }
 
-    .menu-toggle {
-      display: none;
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      border: none;
-      background: #2c3e50;
-      color: #fff;
-      font-size: 20px;
-      z-index: 1200;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      cursor: pointer;
-    }
-
     /* Custom popup styling */
     .leaflet-popup-content-wrapper {
       border-radius: 10px;
@@ -522,27 +505,19 @@
 
     @media (max-width: 576px) {
       .sidebar {
-        width: 300px;
-        height: 100vh;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-      }
-      .sidebar.open {
-        transform: translateX(0);
+        width: 100%;
+        height: auto;
+        max-height: 40vh;
+        position: relative;
       }
       #map {
         width: 100%;
         margin-left: 0;
-        height: 100vh;
+        height: 60vh;
       }
       .map-switch {
         top: 10px;
         right: 10px;
-      }
-      .menu-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
       }
     }
   </style>
@@ -551,8 +526,6 @@
 <body>
 
 <div id="loading" class="loading">กำลังโหลดข้อมูล</div>
-
-<button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">☰</button>
 
 <div class="sidebar">
   <div class="sidebar-header">
@@ -818,6 +791,9 @@ function getMarkerStyle(status, styleMode, region, dwdmType, mplsType) {
       }
       return { radius: 10, fillColor: getMplsColor(mplsType) };
     case 'installation':
+      if (status && String(status).trim() === '-') {
+        return { radius: 6, fillColor: '#d1d5db' };
+      }
       return { radius: 10, fillColor: statusColor(status) };
     case 'base':
     default:
@@ -1333,30 +1309,22 @@ fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&s
       });
     }
 
-document.querySelectorAll('input[name="styleMode"]').forEach(input => {
-  input.addEventListener('change', (e) => {
-    currentStyle = e.target.value;
-    applyStyleToMarkers();
-    updateLegend();
-  });
-});
+    document.querySelectorAll('input[name="styleMode"]').forEach(input => {
+      input.addEventListener('change', (e) => {
+        currentStyle = e.target.value;
+        applyStyleToMarkers();
+        updateLegend();
+      });
+    });
 
-applyFilters();
+    applyFilters();
 
-document.getElementById('loading').style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
   })
   .catch(err => {
     console.error('Error loading data:', err);
     document.getElementById('loading').textContent = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
   });
-
-const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.querySelector('.sidebar');
-if (menuToggle && sidebar) {
-  menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-  });
-}
 </script>
 
 </body>
