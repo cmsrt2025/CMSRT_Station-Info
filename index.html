@@ -54,6 +54,7 @@
       padding: 25px 20px;
       background: rgba(0,0,0,0.2);
       border-bottom: 2px solid #3498db;
+      position: relative;
     }
 
     .sidebar-header h2 {
@@ -67,6 +68,35 @@
       margin: 8px 0 0 0;
       font-size: 13px;
       color: #bdc3c7;
+    }
+
+    .update-data-btn {
+      position: absolute;
+      right: 14px;
+      bottom: 10px;
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #2ecc71;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+
+    .update-data-btn:hover {
+      background: #27ae60;
+      box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .update-data-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 0 6px rgba(46, 204, 113, 0.4);
     }
 
     .sidebar-content {
@@ -96,6 +126,24 @@
 
     .section-title h3 {
       margin: 0;
+    }
+
+    #openFilterModal {
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 8px;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+    }
+
+    #openFilterModal:hover {
+      background: rgba(52, 152, 219, 0.25);
+      box-shadow: 0 0 12px rgba(52, 152, 219, 0.5);
+      transform: translateY(-1px);
+    }
+
+    #openFilterModal:active {
+      transform: translateY(0);
+      box-shadow: 0 0 8px rgba(52, 152, 219, 0.4);
     }
 
     .label-toggle {
@@ -287,6 +335,71 @@
       background: #c0392b;
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .filter-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+      padding: 20px;
+    }
+
+    .filter-modal-overlay.show {
+      display: flex;
+    }
+
+    .filter-modal {
+      width: 100%;
+      max-width: 520px;
+      background: #2c3e50;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      padding: 16px;
+      color: #ecf0f1;
+    }
+
+    .filter-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .filter-modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #3498db;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .filter-modal-close {
+      background: transparent;
+      border: none;
+      color: #ecf0f1;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    .filter-modal-list {
+      max-height: 280px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 8px;
     }
 
     .station-count {
@@ -560,6 +673,7 @@
   <div class="sidebar-header">
     <h2>🚉 CMSRT Station Info </h2>
     <p>ระบบติดตามสถานะสถานีรถไฟ</p>
+    <a class="update-data-btn" id="updateDataBtn" href="#">Update Data</a>
   </div>
 
   <div class="sidebar-content">
@@ -571,8 +685,8 @@
           Show label
         </label>
       </div>
-      <div class="filter-group">
-        <div class="filter-group-header active" id="styleSelectorHeader">
+      <div class="filter-group" id="filter_Layer">
+        <div class="filter-group-header active" onclick="toggleDropdown('Layer')">
           <div class="filter-group-title">
             <span class="dropdown-arrow open">▼</span>
             <label>Layer</label>
@@ -608,7 +722,10 @@
     </div>
 
     <div class="filter-section">
-      <h3>⚙️ Filter</h3>
+      <div class="section-title" id="openFilterModal">
+        <h3>⚙️ Filter</h3>
+        <span class="dropdown-arrow">▼</span>
+      </div>
       <div id="dynamicFilters">
         <!-- Filters will be generated here automatically -->
       </div>
@@ -630,10 +747,25 @@
   <button class="map-btn" onclick="changeLayer('satellite')">🛰️ ดาวเทียม</button>
 </div>
 
+<div class="filter-modal-overlay" id="filterModalOverlay" aria-hidden="true">
+  <div class="filter-modal" role="dialog" aria-modal="true" aria-labelledby="filterModalTitle">
+    <div class="filter-modal-header">
+      <div class="filter-modal-title" id="filterModalTitle">เลือกหัวข้อ Filter</div>
+      <button class="filter-modal-close" id="filterModalClose" aria-label="Close">×</button>
+    </div>
+    <div class="filter-modal-actions">
+      <button class="select-all-btn" id="filterSelectAllBtn">ทั้งหมด</button>
+      <button class="select-all-btn" id="filterSelectNoneBtn">ไม่เลือก</button>
+    </div>
+    <div class="filter-modal-list" id="filterSelectorList"></div>
+  </div>
+</div>
+
 <script>
 /* ================= CONFIG ================= */
 const SHEET_ID = '1wsOOFGM0eVUrpozcOWJFQSpJEBpwH0l7iC0gpWxbx6M';
 const SHEET_NAME = 'Sheet1';
+const EXCEL_ONLINE_URL = 'https://ccivproject.sharepoint.com/:x:/r/sites/SRTCommu/Shared%20Documents/SRT/CCIV/CMSRT%20Station%20Info.xlsx?d=w5d2ae345211b469d9b81824fcec8cb36&csf=1&web=1&e=Gn2eK9';
 
 // กำหนดค่าคอลัมน์ต่างๆ ตามโครงสร้างใหม่
 const CONFIG = {
@@ -698,6 +830,9 @@ let columnHeaders = [];
 let filterCheckboxes = {};
 let currentStyle = 'base';
 let showLabels = false;
+let allFilterColumns = [];
+let selectedFilterColumns = new Set();
+let activeFilterColumns = [];
 
 const DWDM_ICON_URLS = {
   'OTM': 'https://github.com/cmsrt2025/CMSRT_Station-Info/blob/main/OLM-M24.png?raw=true',
@@ -742,6 +877,10 @@ function getColumnIndex(name, fallbackIndex) {
   if (exact != -1) return exact;
   const target = String(name).trim().toLowerCase();
   return columnHeaders.findIndex(col => String(col).trim().toLowerCase() === target);
+}
+
+function normalizeColumnName(name) {
+  return String(name || '').trim().toLowerCase();
 }
 
 const regionColorMap = new Map();
@@ -1068,12 +1207,76 @@ function toggleDropdown(colName) {
   }
 }
 
+function updateActiveFilterColumns() {
+  activeFilterColumns = allFilterColumns.filter(col => selectedFilterColumns.has(col));
+  createFilters(columnHeaders, allData);
+  applyFilters();
+}
+
+function buildFilterSelector() {
+  const list = document.getElementById('filterSelectorList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  allFilterColumns.forEach(colName => {
+    const checkboxItem = document.createElement('div');
+    checkboxItem.className = 'checkbox-item';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `filter_option_${colName}`.replace(/\s+/g, '_');
+    checkbox.checked = selectedFilterColumns.has(colName);
+    checkbox.onchange = () => {
+      if (checkbox.checked) {
+        selectedFilterColumns.add(colName);
+      } else {
+        selectedFilterColumns.delete(colName);
+      }
+      updateActiveFilterColumns();
+    };
+
+    const cbLabel = document.createElement('label');
+    cbLabel.htmlFor = checkbox.id;
+    cbLabel.textContent = colName;
+
+    checkboxItem.appendChild(checkbox);
+    checkboxItem.appendChild(cbLabel);
+
+    checkboxItem.onclick = (e) => {
+      if (e.target !== checkbox) {
+        checkbox.checked = !checkbox.checked;
+        checkbox.onchange();
+      }
+    };
+
+    list.appendChild(checkboxItem);
+  });
+}
+
+function setupFilterSelector() {
+  const excluded = new Set([CONFIG.latColumn, CONFIG.lngColumn]);
+  allFilterColumns = columnHeaders.filter(col => col && !excluded.has(col));
+
+  const configSet = new Set(CONFIG.filterColumns.map(normalizeColumnName));
+  selectedFilterColumns = new Set(
+    allFilterColumns.filter(col => configSet.has(normalizeColumnName(col)))
+  );
+
+  if (selectedFilterColumns.size === 0) {
+    selectedFilterColumns = new Set(allFilterColumns);
+  }
+
+  buildFilterSelector();
+  updateActiveFilterColumns();
+}
+
 function createFilters(columns, data) {
   const dynamicFilters = document.getElementById('dynamicFilters');
   dynamicFilters.innerHTML = '';
 
-  CONFIG.filterColumns.forEach(colName => {
-    const colIndex = columnHeaders.indexOf(colName);
+  filterCheckboxes = {};
+  activeFilterColumns.forEach(colName => {
+    const colIndex = getColumnIndex(colName);
     if (colIndex === -1) return;
 
     const values = data.map(row => row[colIndex]).filter(v => v);
@@ -1190,7 +1393,7 @@ function applyFilters() {
 
     let matchFilters = true;
     for (let colName in filterCheckboxes) {
-      const colIndex = columnHeaders.indexOf(colName);
+      const colIndex = getColumnIndex(colName);
       const rowValue = m.data[colIndex];
       
       // Check if at least one checkbox is checked for this column
@@ -1333,17 +1536,17 @@ fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&s
         className: 'custom-popup'
       });
 
-      allMarkers.push({
-        marker,
-        markerType: 'circle',
-        latlng,
-        popupContent,
-        label: nameIndex === -1 ? '' : String(rowData[nameIndex]),
-        data: rowData
-      });
+    allMarkers.push({
+      marker,
+      markerType: 'circle',
+      latlng,
+      popupContent,
+      label: nameIndex === -1 ? '' : String(rowData[nameIndex]),
+      data: rowData
     });
+  });
 
-    createFilters(columnHeaders, allData);
+    setupFilterSelector();
     updateLegend();
     applyLabelsToMarkers();
 
@@ -1383,6 +1586,66 @@ window.addEventListener('resize', () => {
     setMenuOpen(false);
   }
 });
+
+const filterSelectAllBtn = document.getElementById('filterSelectAllBtn');
+const filterSelectNoneBtn = document.getElementById('filterSelectNoneBtn');
+const filterModalOverlay = document.getElementById('filterModalOverlay');
+const filterModalClose = document.getElementById('filterModalClose');
+const openFilterModal = document.getElementById('openFilterModal');
+const updateDataBtn = document.getElementById('updateDataBtn');
+
+if (filterSelectAllBtn && filterSelectNoneBtn) {
+  filterSelectAllBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedFilterColumns = new Set(allFilterColumns);
+    buildFilterSelector();
+    updateActiveFilterColumns();
+  });
+
+  filterSelectNoneBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectedFilterColumns = new Set();
+    buildFilterSelector();
+    updateActiveFilterColumns();
+  });
+}
+
+if (openFilterModal && filterModalOverlay) {
+  openFilterModal.addEventListener('click', () => {
+    filterModalOverlay.classList.add('show');
+    filterModalOverlay.setAttribute('aria-hidden', 'false');
+  });
+}
+
+if (filterModalClose && filterModalOverlay) {
+  filterModalClose.addEventListener('click', () => {
+    filterModalOverlay.classList.remove('show');
+    filterModalOverlay.setAttribute('aria-hidden', 'true');
+  });
+}
+
+if (filterModalOverlay) {
+  filterModalOverlay.addEventListener('click', (e) => {
+    if (e.target === filterModalOverlay) {
+      filterModalOverlay.classList.remove('show');
+      filterModalOverlay.setAttribute('aria-hidden', 'true');
+    }
+  });
+}
+
+if (updateDataBtn) {
+  if (EXCEL_ONLINE_URL) {
+    updateDataBtn.setAttribute('href', EXCEL_ONLINE_URL);
+    updateDataBtn.setAttribute('target', '_blank');
+    updateDataBtn.setAttribute('rel', 'noopener');
+  }
+  updateDataBtn.addEventListener('click', (e) => {
+    if (!EXCEL_ONLINE_URL) {
+      e.preventDefault();
+      alert('ยังไม่ได้ใส่ลิงก์ Excel online');
+    }
+  });
+}
 </script>
 
 </body>
