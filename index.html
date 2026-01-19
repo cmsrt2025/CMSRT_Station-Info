@@ -572,13 +572,21 @@
       max-width: 400px;
     }
 
+    .popup-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #3498db;
+    }
+
     .popup-title {
       font-size: 18px;
       font-weight: bold;
       color: #2c3e50;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #3498db;
+      margin: 0;
     }
 
     .popup-section {
@@ -608,21 +616,45 @@
     }
 
     .street-view-link {
-      display: block;
-      margin-top: 12px;
-      padding: 10px 15px;
-      background: #4285f4;
-      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #e8f1ff;
+      color: #2f5fbf;
       text-decoration: none;
-      border-radius: 6px;
-      font-size: 13px;
+      border-radius: 999px;
+      font-size: 12px;
       font-weight: 600;
-      text-align: center;
-      transition: background 0.2s;
+      border: 1px solid #c7dcff;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
     }
 
     .street-view-link:hover {
-      background: #357ae8;
+      background: #d9e9ff;
+      border-color: #b7d0ff;
+      color: #244fa6;
+    }
+
+    .dwg-link {
+      display: block;
+      margin-top: 12px;
+      padding: 9px 14px;
+      background: #edf5ff;
+      color: #2b5fb8;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid #cfe2ff;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+
+    .dwg-link:hover {
+      background: #e2efff;
+      border-color: #bdd7ff;
+      color: #244fa6;
     }
 
     @media (max-width: 768px) {
@@ -778,10 +810,11 @@ const CONFIG = {
   dwdmColumn: 'DWDM Site type',
   dwdmColumnIndex: 8,
   mplsColumn: 'MPLS Site Type',
+  dwgUrlColumn: 'Ins DWG',
   // คอลัมน์ที่ต้องการให้มี filter (checkbox)
   filterColumns: ['Status', 'Consultant', 'Region', 'Province', 'Type of station', 'DWDM Site type', 'MPLS Site Type'],
   // คอลัมน์ที่ไม่ต้องการแสดงใน popup
-  excludeFromPopup: []
+  excludeFromPopup: ['Ins DWG']
 };
 /* ========================================== */
 
@@ -1442,13 +1475,21 @@ function createPopupContent(rowData) {
   const nameIndex = columnHeaders.indexOf(CONFIG.nameColumn);
   const latIndex = columnHeaders.indexOf(CONFIG.latColumn);
   const lngIndex = columnHeaders.indexOf(CONFIG.lngColumn);
+  const dwgIndex = getColumnIndex(CONFIG.dwgUrlColumn);
   
   const stationNo = rowData[noIndex] || '-';
   const stationName = rowData[nameIndex] || 'ไม่ระบุชื่อ';
   const lat = parseFloat(rowData[latIndex]);
   const lng = parseFloat(rowData[lngIndex]);
+  const dwgUrl = dwgIndex === -1 ? '' : rowData[dwgIndex];
 
-  let popupHTML = `<div class="popup-title">🚉 ${stationName}</div>`;
+  const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}`;
+  let popupHTML = `
+    <div class="popup-title-row">
+      <div class="popup-title">🚉 ${stationName}</div>
+      <a href="${streetViewUrl}" target="_blank" class="street-view-link">👤 Street View</a>
+    </div>
+  `;
   popupHTML += `<div class="popup-row">
     <span class="popup-label">หมายเลข:</span>
     <span class="popup-value">${stationNo}</span>
@@ -1478,12 +1519,13 @@ function createPopupContent(rowData) {
     </div>
   `;
 
-  const streetViewUrl = `https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}`;
-  popupHTML += `
-    <a href="${streetViewUrl}" target="_blank" class="street-view-link">
-      👁️ ดู Street View
-    </a>
-  `;
+  if (dwgUrl && dwgUrl !== '-') {
+    popupHTML += `
+      <a href="${dwgUrl}" target="_blank" rel="noopener" class="dwg-link">
+        Installation DWG.
+      </a>
+    `;
+  }
 
   return popupHTML;
 }
