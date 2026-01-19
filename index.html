@@ -811,8 +811,9 @@ const CONFIG = {
   dwdmColumnIndex: 8,
   mplsColumn: 'MPLS Site Type',
   dwgUrlColumn: 'Ins DWG',
+  defaultFilterColumns: ['Consultant', 'Region', 'Province', 'Type of station', 'MPLS Site Type'],
   // คอลัมน์ที่ต้องการให้มี filter (checkbox)
-  filterColumns: ['Status', 'Consultant', 'Region', 'Province', 'Type of station', 'DWDM Site type', 'MPLS Site Type'],
+  filterColumns: ['Consultant', 'Region', 'Province', 'Type of station', 'MPLS Site Type', 'Status', 'DWDM Site type'],
   // คอลัมน์ที่ไม่ต้องการแสดงใน popup
   excludeFromPopup: ['Ins DWG']
 };
@@ -913,7 +914,12 @@ function getColumnIndex(name, fallbackIndex) {
 }
 
 function normalizeColumnName(name) {
-  return String(name || '').trim().toLowerCase();
+  const value = String(name || '').trim().toLowerCase();
+  const compact = value.replace(/[^a-z0-9]+/g, '');
+  if (compact.startsWith('consult')) {
+    return 'consultant';
+  }
+  return compact;
 }
 
 const regionColorMap = new Map();
@@ -1241,7 +1247,19 @@ function toggleDropdown(colName) {
 }
 
 function updateActiveFilterColumns() {
-  activeFilterColumns = allFilterColumns.filter(col => selectedFilterColumns.has(col));
+  const orderMap = new Map(
+    CONFIG.filterColumns.map((col, index) => [normalizeColumnName(col), index])
+  );
+  const fallbackIndex = CONFIG.filterColumns.length + 1;
+
+  activeFilterColumns = allFilterColumns
+    .filter(col => selectedFilterColumns.has(col))
+    .sort((a, b) => {
+      const aIndex = orderMap.has(normalizeColumnName(a)) ? orderMap.get(normalizeColumnName(a)) : fallbackIndex;
+      const bIndex = orderMap.has(normalizeColumnName(b)) ? orderMap.get(normalizeColumnName(b)) : fallbackIndex;
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      return a.localeCompare(b);
+    });
   createFilters(columnHeaders, allData);
   applyFilters();
 }
@@ -1294,6 +1312,13 @@ function setupFilterSelector() {
   selectedFilterColumns = new Set(
     allFilterColumns.filter(col => configSet.has(normalizeColumnName(col)))
   );
+
+  if (CONFIG.defaultFilterColumns && CONFIG.defaultFilterColumns.length > 0) {
+    const defaultSet = new Set(CONFIG.defaultFilterColumns.map(normalizeColumnName));
+    selectedFilterColumns = new Set(
+      allFilterColumns.filter(col => defaultSet.has(normalizeColumnName(col)))
+    );
+  }
 
   if (selectedFilterColumns.size === 0) {
     selectedFilterColumns = new Set(allFilterColumns);
